@@ -1,0 +1,41 @@
+-- Напишите запрос, который выводит список фильмов, где рейтинг является NULL, и заменяет NULL на значение 0.
+SELECT 
+    movie_id,
+    title,
+    release_year,
+    genre,
+    COALESCE(rating, 0) AS rating,   -- NULL заменяется на 0
+    duration,
+    description,
+    additional_info
+FROM movies
+WHERE rating IS NULL;
+
+-- Напишите запрос, который выводит название фильма и округленное вверх значение рейтинга до ближайшего целого числа.
+SELECT 
+    title,
+    rating,
+    CEIL(rating) AS rating_ceiled
+FROM movies;
+
+-- Выведите список клиентов, которые зарегистрировались в последний месяц.
+SELECT *
+FROM customers c 
+WHERE registration_date between (now() - interval '1 month') and now()
+
+-- Выведите количество дней, в течение которых каждый клиент держал у себя фильм.
+SELECT
+    c.first_name,
+    c.last_name,
+    m.title AS movie_title,
+    r.rental_id,
+    r.rental_date,
+    r.return_date,
+    COALESCE(r.return_date, CURRENT_DATE) - r.rental_date AS days_rented
+FROM rentals r
+JOIN customers c ON r.customer_id = c.customer_id
+JOIN movies m ON r.movie_id = m.movie_id;
+
+-- Напишите запрос, который выводит название фильма в верхнем регистре.
+SELECT upper(title)
+FROM movies
