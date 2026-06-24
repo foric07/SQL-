@@ -1,0 +1,35 @@
+Напишите запрос, который выводит название фильма и список языков, на которых доступен фильм. Используйте функции работы с JSON для извлечения массива языков из поля additional_info.
+SELECT title, additional_info->'languages' AS languages
+FROM postgres."KINO".movies m;
+
+Напишите запрос, который выводит список фильмов, бюджет которых превышает 100 миллионов долларов. Бюджет хранится в поле additional_info внутри ключа budget.
+SELECT title, additional_info->'budget' AS languages
+FROM postgres."KINO".movies m
+WHERE additional_info->'budget' >= '100000000' 
+
+Напишите запрос, который для каждого клиента создаёт JSON-объект с полями full_name (содержащим полное имя клиента) и contact (содержащим email и номер телефона). Выведите customer_id и созданный JSON-объект.
+SELECT customer_id,
+jsonb_build_object('full_name', first_name || ' ' || last_name,'contact', jsonb_build_object('email', email,'phone_number', phone_number)) AS customer_json
+FROM customers;
+
+Напишите запрос, который добавляет новый предпочитаемый жанр ""Drama"" в список preferred_genres для всех клиентов, которые подписаны на рассылку новостей (ключ newsletter имеет значение true).
+UPDATE customers
+SET preferences = jsonb_set(
+    preferences,
+    '{preferred_genres}',
+    COALESCE(preferences->'preferred_genres', '[]'::jsonb) || '["Drama"]'::jsonb)
+WHERE preferences->>'newsletter' = 'true'
+  AND NOT (preferences->'preferred_genres' ? 'Drama');
+
+Напишите запрос, который вычисляет средний бюджет фильмов по жанрам. Учтите, что жанр хранится в поле genre таблицы Movie, а бюджет — внутри JSON-поля additional_info.
+ SELECT 
+    genre,
+    AVG((additional_info->>'budget')::numeric) AS avg_budget
+FROM movies
+WHERE additional_info ? 'budget'
+  AND additional_info->>'budget' IS NOT NULL
+  AND additional_info->>'budget' != ''
+GROUP BY genre
+ORDER BY avg_budget DESC;
+
+
