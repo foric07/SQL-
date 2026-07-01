@@ -1,0 +1,55 @@
+Создайте представление CustomerMovieRentalView, которое объединяет информацию о клиентах и фильмах, которые они брали в аренду. Включите следующие столбцы: фио клиента, его номер телефона, название фильма, количество дней в аренде фильма у клиента
+CREATE VIEW CustomerMovieRentalView AS
+SELECT 
+    c.first_name || ' ' || c.last_name AS full_name,
+    c.phone_number,
+    m.title AS movie_title,
+    r.rental_date,
+    (COALESCE(r.return_date, CURRENT_DATE) - r.rental_date) AS days_rented
+FROM postgres."KINO".customers c
+JOIN postgres."KINO".rentals r ON c.customer_id = r.customer_id
+JOIN postgres."KINO".movies m ON r.movie_id = m.movie_id;
+
+Напишите запрос, который покажет все фильмы, взятые в аренду клиентами в марте 2022 года, используя созданное представление.
+SELECT *
+FROM CustomerMovieRentalView
+WHERE rental_date BETWEEN '2022-03-01' AND '2022-03-31';
+
+Создайте триггер, который автоматически обновляет поле rental_date в таблице Rental на текущую дату, если пользователь пытается вставить запись с пустым значением rental_date. Используйте BEFORE INSERT триггер.
+CREATE OR REPLACE FUNCTION set_rental_date_if_null()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.rental_date IS NULL THEN
+        NEW.rental_date := CURRENT_DATE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_rental_date
+BEFORE INSERT ON postgres."KINO".rentals
+FOR EACH ROW
+EXECUTE FUNCTION set_rental_date_if_null();
+
+Создайте триггер, который предотвращает удаление записей о фильмах, если они связаны с таблицей Rental. Используйте BEFORE DELETE триггер.
+CREATE OR REPLACE FUNCTION prevent_delete_movie_with_rentals()
+RETURNS TRIGGER AS $$
+DECLARE
+    rental_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO rental_count
+    FROM postgres."KINO".rentals
+    WHERE movie_id = OLD.movie_id;
+    
+    IF rental_count > 0 THEN
+        RAISE EXCEPTION 'Cannot delete movie with ID % because it has rental records.', OLD.movie_id;
+    END IF;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_delete_movie_with_rentals
+BEFORE DELETE ON postgres."KINO".movies
+FOR EACH ROW
+EXECUTE FUNCTION prevent_delete_movie_with_rentals();

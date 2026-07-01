@@ -1,0 +1,26 @@
+-- Напишите запрос, который выводит список фильмов вместе с именами и фамилиями актеров, сыгравших в них. Отсортируйте результат по названию фильма и фамилии актера.
+SELECT
+    m.title,
+    a.first_name,
+    a.last_name
+FROM movies m
+JOIN movie_actors ma ON m.movie_id = ma.movie_id
+JOIN actors a ON ma.actor_id = a.actor_id
+ORDER BY m.title ASC, a.last_name ASC;
+
+-- Напишите запрос, который выводит список всех клиентов и, если они совершали аренды, то укажите дату последней аренды. Если клиент не совершал аренды, дата аренды должна быть NULL.
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name,
+    MAX(r.rental_date) AS last_rental_date
+FROM customers c
+LEFT JOIN rentals r ON c.customer_id = r.customer_id
+GROUP BY c.customer_id, c.first_name, c.last_name
+ORDER BY c.last_name, c.first_name;
+
+-- Напишите запрос, который выводит название фильмов, чья продолжительность больше средней продолжительности всех фильмов в базе данных.
+SELECT title, duration
+FROM movies
+WHERE duration > (SELECT AVG(duration) FROM movies)
+ORDER BY duration DESC;
