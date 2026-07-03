@@ -1,0 +1,42 @@
+Создайте хранимую процедуру AddNewMovie, которая добавляет новый фильм в таблицу Movie, но только если фильма с таким названием и годом выпуска еще нет в базе данных. Если фильм существует, процедура должна вывести сообщение о наличии дубля.
+CREATE OR REPLACE PROCEDURE postgres."KINO".AddNewMovie(
+    p_title VARCHAR(255),
+    p_release_year INT,
+    p_genre VARCHAR(100) DEFAULT NULL,
+    p_rating DECIMAL(2,1) DEFAULT NULL,
+    p_duration INT DEFAULT NULL,
+    p_description TEXT DEFAULT NULL,
+    p_additional_info JSONB DEFAULT NULL
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Проверяем, есть ли уже фильм с таким же названием и годом
+    IF EXISTS (
+        SELECT 1 FROM movies
+        WHERE title = p_title AND release_year = p_release_year
+    ) THEN
+        RAISE NOTICE 'Дубль: фильм "%" (% год) уже существует в базе.', p_title, p_release_year;
+    ELSE
+        INSERT INTO movies (title, release_year, genre, rating, duration, description, additional_info)
+        VALUES (p_title, p_release_year, p_genre, p_rating, p_duration, p_description, p_additional_info);
+        RAISE NOTICE 'Фильм "%" успешно добавлен.', p_title;
+    END IF;
+END;
+$$;
+
+Создайте хранимую процедуру GetCustomerRentalCount, которая принимает customer_id и возвращает количество фильмов, которые этот клиент арендовал, а также сумму всех аренд (общее количество записей).
+CREATE OR REPLACE PROCEDURE postgres."KINO".GetCustomerRentalCount(
+    IN p_customer_id INT,
+    OUT rental_count INT,
+    OUT movie_count INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT COUNT(*), COUNT(DISTINCT movie_id)
+    INTO rental_count, movie_count
+    FROM rentals
+    WHERE customer_id = p_customer_id;
+END;
+$$;
