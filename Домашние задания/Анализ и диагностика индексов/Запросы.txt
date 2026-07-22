@@ -1,0 +1,107 @@
+ЗАПРОС: 
+EXPLAIN analyze SELECT
+    c.first_name, 
+    c.last_name, 
+    m.title,
+    COUNT(r.rental_id) AS rental_count, 
+    MAX(r.rental_date) AS last_rental_date
+FROM 
+    "KINO".customers c
+JOIN 
+    "KINO".rentals r ON c.customer_id = r.customer_id
+JOIN 
+    "KINO".movies m ON r.movie_id = m.movie_id
+WHERE 
+    m.genre = 'Action'
+    AND r.rental_date BETWEEN '2021-01-01' AND '2022-12-31'
+GROUP BY 
+    c.first_name,
+    c.last_name, 
+    m.title
+ORDER BY 
+    rental_count DESC, 
+    last_rental_date DESC
+LIMIT 10;
+--------------------------------------------------------------------------------------------------------------------------------------------------
+РЕЗУЛЬТАТ: 
+|QUERY PLAN                                                                                                                                      |
+|------------------------------------------------------------------------------------------------------------------------------------------------|
+|Limit  (cost=19.04..19.04 rows=1 width=541) (actual time=0.163..0.166 rows=5.00 loops=1)                                                        |
+|  Buffers: shared hit=64                                                                                                                        |
+|  ->  Sort  (cost=19.04..19.04 rows=1 width=541) (actual time=0.162..0.163 rows=5.00 loops=1)                                                   |
+|        Sort Key: (count(r.rental_id)) DESC, (max(r.rental_date)) DESC                                                                          |
+|        Sort Method: quicksort  Memory: 25kB                                                                                                    |
+|        Buffers: shared hit=64                                                                                                                  |
+|        ->  GroupAggregate  (cost=19.00..19.03 rows=1 width=541) (actual time=0.154..0.158 rows=5.00 loops=1)                                   |
+|              Group Key: c.first_name, c.last_name, m.title                                                                                     |
+|              Buffers: shared hit=64                                                                                                            |
+|              ->  Sort  (cost=19.00..19.00 rows=1 width=537) (actual time=0.150..0.151 rows=5.00 loops=1)                                       |
+|                    Sort Key: c.first_name, c.last_name, m.title                                                                                |
+|                    Sort Method: quicksort  Memory: 25kB                                                                                        |
+|                    Buffers: shared hit=64                                                                                                      |
+|                    ->  Nested Loop  (cost=3.56..18.99 rows=1 width=537) (actual time=0.039..0.130 rows=5.00 loops=1)                           |
+|                          Join Filter: (m.movie_id = r.movie_id)                                                                                |
+|                          Rows Removed by Join Filter: 135                                                                                      |
+|                          Buffers: shared hit=64                                                                                                |
+|                          ->  Hash Join  (cost=3.56..7.85 rows=1 width=25) (actual time=0.032..0.048 rows=30.00 loops=1)                        |
+|                                Hash Cond: (c.customer_id = r.customer_id)                                                                      |
+|                                Buffers: shared hit=4                                                                                           |
+|                                ->  Seq Scan on customers c  (cost=0.00..3.93 rows=93 width=17) (actual time=0.012..0.020 rows=62.00 loops=1)   |
+|                                      Buffers: shared hit=3                                                                                     |
+|                                ->  Hash  (cost=3.55..3.55 rows=1 width=16) (actual time=0.014..0.014 rows=30.00 loops=1)                       |
+|                                      Buckets: 1024  Batches: 1  Memory Usage: 10kB                                                             |
+|                                      Buffers: shared hit=1                                                                                     |
+|                                      ->  Seq Scan on rentals r  (cost=0.00..3.55 rows=1 width=16) (actual time=0.005..0.008 rows=30.00 loops=1)|
+|                                            Filter: ((rental_date >= '2021-01-01'::date) AND (rental_date <= '2022-12-31'::date))               |
+|                                            Buffers: shared hit=1                                                                               |
+|                          ->  Seq Scan on movies m  (cost=0.00..11.12 rows=1 width=520) (actual time=0.001..0.002 rows=4.67 loops=30)           |
+|                                Filter: ((genre)::text = 'Action'::text)                                                                        |
+|                                Rows Removed by Filter: 23                                                                                      |
+|                                Buffers: shared hit=60                                                                                          |
+|Planning Time: 0.179 ms                                                                                                                         |
+|Execution Time: 0.198 ms                                                                                                                        |
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ДОБАВЛЕНИЕ ИНДЕКСОВ:
+CREATE INDEX idx_movies_genre ON "KINO".movies (genre);
+CREATE INDEX idx_rentals_rental_date ON "KINO".rentals (rental_date);
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ПОВТОРНЫЙ РЕЗУЛЬТАТ: 
+|QUERY PLAN                                                                                                                                      |
+|------------------------------------------------------------------------------------------------------------------------------------------------|
+|Limit  (cost=8.19..8.19 rows=1 width=541) (actual time=0.247..0.250 rows=5.00 loops=1)                                                          |
+|  Buffers: shared hit=64                                                                                                                        |
+|  ->  Sort  (cost=8.19..8.19 rows=1 width=541) (actual time=0.246..0.248 rows=5.00 loops=1)                                                     |
+|        Sort Key: (count(r.rental_id)) DESC, (max(r.rental_date)) DESC                                                                          |
+|        Sort Method: quicksort  Memory: 25kB                                                                                                    |
+|        Buffers: shared hit=64                                                                                                                  |
+|        ->  GroupAggregate  (cost=8.15..8.18 rows=1 width=541) (actual time=0.236..0.240 rows=5.00 loops=1)                                     |
+|              Group Key: c.first_name, c.last_name, m.title                                                                                     |
+|              Buffers: shared hit=64                                                                                                            |
+|              ->  Sort  (cost=8.15..8.15 rows=1 width=537) (actual time=0.229..0.231 rows=5.00 loops=1)                                         |
+|                    Sort Key: c.first_name, c.last_name, m.title                                                                                |
+|                    Sort Method: quicksort  Memory: 25kB                                                                                        |
+|                    Buffers: shared hit=64                                                                                                      |
+|                    ->  Nested Loop  (cost=1.46..8.14 rows=1 width=537) (actual time=0.045..0.219 rows=5.00 loops=1)                            |
+|                          Join Filter: (m.movie_id = r.movie_id)                                                                                |
+|                          Rows Removed by Join Filter: 135                                                                                      |
+|                          Buffers: shared hit=64                                                                                                |
+|                          ->  Hash Join  (cost=1.46..5.75 rows=1 width=25) (actual time=0.038..0.064 rows=30.00 loops=1)                        |
+|                                Hash Cond: (c.customer_id = r.customer_id)                                                                      |
+|                                Buffers: shared hit=4                                                                                           |
+|                                ->  Seq Scan on customers c  (cost=0.00..3.93 rows=93 width=17) (actual time=0.015..0.024 rows=62.00 loops=1)   |
+|                                      Buffers: shared hit=3                                                                                     |
+|                                ->  Hash  (cost=1.45..1.45 rows=1 width=16) (actual time=0.018..0.018 rows=30.00 loops=1)                       |
+|                                      Buckets: 1024  Batches: 1  Memory Usage: 10kB                                                             |
+|                                      Buffers: shared hit=1                                                                                     |
+|                                      ->  Seq Scan on rentals r  (cost=0.00..1.45 rows=1 width=16) (actual time=0.007..0.011 rows=30.00 loops=1)|
+|                                            Filter: ((rental_date >= '2021-01-01'::date) AND (rental_date <= '2022-12-31'::date))               |
+|                                            Buffers: shared hit=1                                                                               |
+|                          ->  Seq Scan on movies m  (cost=0.00..2.38 rows=1 width=520) (actual time=0.002..0.004 rows=4.67 loops=30)            |
+|                                Filter: ((genre)::text = 'Action'::text)                                                                        |
+|                                Rows Removed by Filter: 23                                                                                      |
+|                                Buffers: shared hit=60                                                                                          |
+|Planning Time: 0.256 ms                                                                                                                         |
+|Execution Time: 0.291 ms                                                                                                                        |
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ВЫВОД:
+Общая стоимость запроса уменьшилась, планировщик все равно делал фуллскан так как строк мало, но при наполнении БД эти индексы значательно сократят стоимость запроса. 
